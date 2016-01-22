@@ -25,6 +25,7 @@ use OC\Files\Filesystem;
 use OC\Files\View;
 use OC\Share20\Share;
 use OCP\Files\FileInfo;
+use OCP\Files\IRootFolder;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputArgument;
@@ -55,9 +56,16 @@ class TransferOwnership extends Command {
 	/** @var string */
 	private $destinationUser;
 
-	public function __construct(\OC\User\Manager $userManager, \OC\Share20\Manager $shareManager) {
+	/** @var string */
+	private $finalTarget;
+
+	/** @var IRootFolder */
+	private $rootFolder;
+
+	public function __construct(\OC\User\Manager $userManager, \OC\Share20\Manager $shareManager, IRootFolder $rootFolder) {
 		$this->userManager = $userManager;
 		$this->shareManager = $shareManager;
+		$this->rootFolder = $rootFolder;
 		parent::__construct();
 	}
 
@@ -88,6 +96,9 @@ class TransferOwnership extends Command {
 			$output->writeln("<error>Unknown destination user $this->destinationUser</error>");
 			return;
 		}
+
+		$date = date('c');
+		$this->finalTarget = "$this->destinationUser/files/transferred from $this->sourceUser on $date";
 
 		// setup filesystem
 		Filesystem::initMountPoints($this->sourceUser);
@@ -158,15 +169,20 @@ class TransferOwnership extends Command {
 	 */
 	private function collectUsersShares(OutputInterface $output) {
 		$output->writeln("Collecting all share information for files and folder of $this->sourceUser ...");
+		$sourceUser = $this->userManager->get($this->sourceUser);
+
 		$progress = new ProgressBar($output, count($this->shares));
-		$page = 0;
-		while(true) {
-			$sharePage = $this->shareManager->getShares($this->sourceUser, $page++);
-			$progress->advance(count($sharePage));
-			if (empty($sharePage)) {
-				break;
+		foreach([\OCP\Share::SHARE_TYPE_USER, \OCP\Share::SHARE_TYPE_GROUP, \OCP\Share::SHARE_TYPE_LINK] as $shareType) {
+			$offset = 0;
+			while (true) {
+				$sharePage = $this->shareManager->getSharesBy($sourceUser, $shareType, null, false, 50, $offset);
+				$progress->advance(count($sharePage));
+				if (empty($sharePage)) {
+					break;
+				}
+				$this->shares = array_merge($this->shares, $sharePage);
+				$offset += 50;
 			}
-			$this->shares = array_merge($this->shares, $sharePage);
 		}
 
 		$progress->finish();
@@ -178,10 +194,8 @@ class TransferOwnership extends Command {
 	 */
 	protected function transfer(OutputInterface $output) {
 		$view = new View();
-		$date = date('c');
-		$finalTarget = "$this->destinationUser/files/transferred from $this->sourceUser on $date";
-		$output->writeln("Transferring files to $finalTarget ...");
-		$view->rename("$this->sourceUser/files", $finalTarget);
+		$output->writeln("Transferring files to $this->finalTarget ...");
+		$view->rename("$this->sourceUser/files", $this->finalTarget);
 	}
 
 	/**
@@ -193,6 +207,9 @@ class TransferOwnership extends Command {
 		foreach($this->shares as $share) {
 			/** @var Share $share */
 			$share->setShareOwner($this->destinationUser);
+			$targetRoot = $this->rootFolder->getUserFolder($this->destinationUser);
+			$destinationNode = $targetRoot->get($this->finalTarget);
+			$share->setPath($destinationNode);
 
 			$this->shareManager->updateShare($share);
 			$progress->advance();
