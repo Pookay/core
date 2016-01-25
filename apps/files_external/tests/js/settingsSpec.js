@@ -87,6 +87,7 @@ describe('OCA.External.Settings tests', function() {
 				'configuration': {
 				},
 				'scheme': 'builtin',
+				'visibility': 3
 			},
 		});
 
