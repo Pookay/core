@@ -215,6 +215,8 @@ class File extends Node implements IFile {
 				}
 			}
 			$this->refreshInfo();
+
+			$this->info->addChecksum('foo', 'bar');
 		} catch (StorageNotAvailableException $e) {
 			throw new ServiceUnavailable("Failed to check file size: " . $e->getMessage());
 		}
