@@ -102,6 +102,8 @@ $jobList = \OC::$server->getJobList();
 $job = 'OCA\Files\BackgroundJob\ScanFiles';
 \OC::$server->getJobList()->add($job);
 
+\OC::$server->getJobList()->add('OCA\Files\Lib\DeleteOrphanedTagsJob');
+
 /**
  * migrate old constant DEBUG to new config value 'debug'
  *
