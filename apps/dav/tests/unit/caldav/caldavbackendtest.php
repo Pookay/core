@@ -117,13 +117,50 @@ class CalDavBackendTest extends TestCase {
 		$this->backend->updateShares($calendar, [
 			[
 				'href' => 'principal:' . self::UNIT_TEST_USER1,
+				'readOnly' => false
 			],
 			[
 				'href' => 'principal:' . self::UNIT_TEST_GROUP,
+				'readOnly' => false
 			]
 		], []);
 		$books = $this->backend->getCalendarsForUser(self::UNIT_TEST_USER1);
 		$this->assertEquals(1, count($books));
+		$calendar = new Calendar($this->backend, $books[0]);
+		$acl = $calendar->getACL();
+		$this->assertAcl(self::UNIT_TEST_USER, '{DAV:}read', $acl);
+		$this->assertAcl(self::UNIT_TEST_USER, '{DAV:}write', $acl);
+		$this->assertAcl(self::UNIT_TEST_USER1, '{DAV:}read', $acl);
+		$this->assertAcl(self::UNIT_TEST_USER1, '{DAV:}write', $acl);
+		$this->assertAcl(self::UNIT_TEST_GROUP, '{DAV:}read', $acl);
+		$this->assertAcl(self::UNIT_TEST_GROUP, '{DAV:}write', $acl);
+
+		// delete the address book
+		$this->backend->deleteCalendar($books[0]['id']);
+		$books = $this->backend->getCalendarsForUser(self::UNIT_TEST_USER);
+		$this->assertEquals(0, count($books));
+	}
+
+	public function testCalendarReadOnlySharing() {
+
+		$this->createTestCalendar();
+		$books = $this->backend->getCalendarsForUser(self::UNIT_TEST_USER);
+		$this->assertEquals(1, count($books));
+		$calendar = new Calendar($this->backend, $books[0]);
+		$this->backend->updateShares($calendar, [
+			[
+				'href' => 'principal:' . self::UNIT_TEST_USER1,
+				'readOnly' => true
+			]
+		], []);
+		$books = $this->backend->getCalendarsForUser(self::UNIT_TEST_USER1);
+		$this->assertEquals(1, count($books));
+		$calendar = new Calendar($this->backend, $books[0]);
+		$acl = $calendar->getACL();
+		$this->assertAcl(self::UNIT_TEST_USER, '{DAV:}read', $acl);
+		$this->assertAcl(self::UNIT_TEST_USER, '{DAV:}write', $acl);
+		$this->assertAcl(self::UNIT_TEST_USER1, '{DAV:}read', $acl);
+		$this->assertNotAcl(self::UNIT_TEST_USER1, '{DAV:}write', $acl);
 
 		// delete the address book
 		$this->backend->deleteCalendar($books[0]['id']);
@@ -385,5 +422,25 @@ EOD;
 
 		$sos = $this->backend->getSchedulingObjects(self::UNIT_TEST_USER);
 		$this->assertEquals(0, count($sos));
+	}
+
+	private function assertAcl($principal, $privilege, $acl) {
+		foreach($acl as $a) {
+			if ($a['principal'] === $principal && $a['privilege'] === $privilege) {
+				$this->assertTrue(true);
+				return;
+			}
+		}
+		$this->fail("ACL does not contain $principal / $privilege");
+	}
+
+	private function assertNotAcl($principal, $privilege, $acl) {
+		foreach($acl as $a) {
+			if ($a['principal'] === $principal && $a['privilege'] === $privilege) {
+				$this->fail("ACL contains $principal / $privilege");
+				return;
+			}
+		}
+		$this->assertTrue(true);
 	}
 }

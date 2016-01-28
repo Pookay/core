@@ -203,6 +203,7 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 			list(, $name) = URLUtil::splitPath($row['principaluri']);
 			$uri = $row['uri'] . '_shared_by_' . $name;
 			$row['displayname'] = $row['displayname'] . "($name)";
+			$readOnly = ($row['access'] == Backend::ACCESS_READ);
 			$components = [];
 			if ($row['components']) {
 				$components = explode(',',$row['components']);
@@ -216,7 +217,7 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 				'{' . Plugin::NS_CALDAV . '}supported-calendar-component-set' => new SupportedCalendarComponentSet($components),
 				'{' . Plugin::NS_CALDAV . '}schedule-calendar-transp' => new ScheduleCalendarTransp($row['transparent']?'transparent':'opaque'),
 				'{' . \OCA\DAV\DAV\Sharing\Plugin::NS_OWNCLOUD . '}owner-principal' => $row['principaluri'],
-				'{' . \OCA\DAV\DAV\Sharing\Plugin::NS_OWNCLOUD . '}read-only' => $row['access'] === Backend::ACCESS_READ,
+				'{' . \OCA\DAV\DAV\Sharing\Plugin::NS_OWNCLOUD . '}read-only' => $readOnly,
 			];
 
 			foreach($this->propertyMap as $xmlName=>$dbName) {
