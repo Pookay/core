@@ -237,4 +237,30 @@ interface FileInfo {
 	 * @since 9.0.0
 	 */
 	public function getOwner();
+
+	/**
+	 * Add the checksum of this file and possibly verify it
+	 *
+	 * @param string $type The type of checksum (e.g. MD5, SHA1)
+	 * @param string $checksum
+	 * @since 9.0.0
+	 */
+	public function addChecksum($type, $checksum);
+
+	/**
+	 * Get a checksum for this file
+	 *
+	 * @param string $type The type of checksum to obtain
+	 * @return string The checksum of $type
+	 * @since 9.0.0
+	 */
+	public function getChecksum($type);
+
+	/**
+	 * Get all checksums for this file
+	 *
+	 * @return string[] Mapping of type => checksum
+	 * @since 9.0.0
+	 */
+	public function getChecksums();
 }
